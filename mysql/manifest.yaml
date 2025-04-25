@@ -1,0 +1,55 @@
+# mysql deployment with ebs dynamic provisioning
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ebs-dynamic
+spec:
+  storageClassName: "expense-ebs-dynamic"
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ebs-dynamic
+  labels:
+    purpose: ebs-dynamic
+    app: mysql
+    tier: db
+    project: expense
+    environment: dev
+spec:
+  nodeSelector:
+    topology.kubernetes.io/zone: us-east-1a
+  containers:
+  - name: mysql
+    image: meerjan/mysql:v1
+    volumeMounts: # docker run -v hostpath:contaierpath
+    - name: ebs-dynamic
+      mountPath: /var/lib/mysql
+  volumes:
+  - name: ebs-dynamic
+    persistentVolumeClaim:
+      claimName: ebs-dynamic
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: mysql
+spec:
+  type: LoadBalancer
+  selector:
+    purpose: ebs-dynamic
+    app: mysql
+    tier: db
+    project: expense
+    environment: dev
+  ports:
+  - name: mysql-svc-port
+    protocol: TCP
+    port: 3306 # service port
+    targetPort: 3306 # container port
+    nodePort: 30007
